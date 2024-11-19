@@ -127,7 +127,7 @@ export const interpolatePoints = (p1: ECGDataPoint, p2: ECGDataPoint, t: number)
   };
 };
 
-// Draw grid lines for ECG paper with time markers
+// Draw grid lines for ECG paper
 export const drawGrid = (
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -141,7 +141,7 @@ export const drawGrid = (
   ctx.save();
   
   // Draw minor grid lines
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.2)';
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
   ctx.lineWidth = 0.5;
   
   for (let x = 0; x < width; x += config.gridSize * pixelsPerMm) {
@@ -159,7 +159,7 @@ export const drawGrid = (
   }
   
   // Draw major grid lines
-  ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
   ctx.lineWidth = 1;
   
   for (let x = 0; x < width; x += config.gridSize * 5 * pixelsPerMm) {
@@ -167,17 +167,6 @@ export const drawGrid = (
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
     ctx.stroke();
-    
-    // Add time markers
-    if (showTimeMarkers) {
-      const timeOffset = (x / (config.timeScale * pixelsPerMm));
-      const timestamp = startTime + (timeOffset * 1000);
-      ctx.save();
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-      ctx.font = '10px sans-serif';
-      ctx.fillText(formatTimestamp(timestamp), x + 2, rowHeight - 5);
-      ctx.restore();
-    }
   }
   
   for (let y = 0; y < height; y += config.gridSize * 5 * pixelsPerMm) {

@@ -49,8 +49,8 @@ export function ECGDisplay({
     const pixelsPerMm = width / (config.timeScale * timeWindow);
     setPixelsPerMm(pixelsPerMm);
     
-    // Clear canvas
-    ctx.fillStyle = 'white';
+    // Clear canvas with black background
+    ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, width, totalHeight);
     
     const currentTime = Date.now() / 1000;
@@ -68,13 +68,13 @@ export function ECGDisplay({
       // Draw grid with time markers for this row
       ctx.save();
       ctx.translate(0, rowY);
-      drawGrid(ctx, width, rowHeight, config, pixelsPerMm, rowStartTime * 1000, rowHeight, true);
+      drawGrid(ctx, width, rowHeight, config, pixelsPerMm, rowStartTime * 1000, rowHeight, false);
       ctx.restore();
       
       // Draw timestamp label
       ctx.save();
-      ctx.fillStyle = 'black';
-      ctx.font = 'bold 12px sans-serif';
+      ctx.fillStyle = '#00FF00';
+      ctx.font = '12px monospace';
       ctx.fillText(formatTimestamp(rowStartTime * 1000), 5, rowY + 15);
       ctx.restore();
       
@@ -91,7 +91,7 @@ export function ECGDisplay({
         ctx.save();
         ctx.translate(0, rowY);
         ctx.beginPath();
-        ctx.strokeStyle = 'black';
+        ctx.strokeStyle = '#00FF00';
         ctx.lineWidth = 1.5;
         
         const baseline = rowHeight * 0.5;
@@ -127,8 +127,8 @@ export function ECGDisplay({
   }, [data, config, width, height, totalHeight, rowHeight, pixelsPerMm]);
 
   return (
-    <div className={cn("relative bg-white rounded-lg shadow-md overflow-hidden", className)}>
-      <div className="absolute top-2 right-2 bg-white/80 px-2 py-1 rounded text-sm z-10">
+    <div className={cn("relative bg-black rounded-lg shadow-md overflow-hidden", className)}>
+      <div className="absolute top-2 right-2 bg-black/80 text-[#00FF00] px-2 py-1 rounded text-sm z-10">
         {config.leadConfiguration} - {config.timeScale}mm/s
       </div>
       <ScrollArea className="h-[600px]" ref={containerRef}>
