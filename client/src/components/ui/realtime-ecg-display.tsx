@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { ECGConfiguration, ECGDataPoint } from '@/lib/ecg-utils';
-import { drawDetailedGrid } from '@/lib/ecg-utils';
+import { drawDetailedGrid, interpolatePoints } from '@/lib/ecg-utils';
 import { cn } from '@/lib/utils';
 
 interface RealtimeECGDisplayProps {
@@ -18,12 +18,20 @@ export function RealtimeECGDisplay({
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number>();
   const lastRenderTimeRef = useRef<number>(0);
+  const dataRef = useRef(data);
+
+  // Update data reference when it changes
+  useEffect(() => {
+    console.log(`[RealtimeDisplay] Data updated: ${data.length} points`);
+    dataRef.current = data;
+  }, [data]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
 
+    console.log('[RealtimeDisplay] Initializing canvas');
     const width = container.clientWidth;
     const height = 200; // Fixed height for realtime view
     
@@ -39,8 +47,8 @@ export function RealtimeECGDisplay({
     ctx.scale(dpr, dpr);
 
     const renderFrame = (timestamp: number) => {
-      // Target 30fps (approximately 33.33ms between frames)
-      if (timestamp - lastRenderTimeRef.current < 33) {
+      // Target 60fps (approximately 16.67ms between frames)
+      if (timestamp - lastRenderTimeRef.current < 16.67) {
         animationFrameRef.current = requestAnimationFrame(renderFrame);
         return;
       }
@@ -57,7 +65,8 @@ export function RealtimeECGDisplay({
       drawDetailedGrid(ctx, width, height, config, pixelsPerMm);
 
       // Draw ECG trace
-      if (data.length > 0) {
+      const currentData = dataRef.current;
+      if (currentData.length > 0) {
         ctx.save();
         ctx.beginPath();
         ctx.strokeStyle = '#00FF00';
@@ -69,25 +78,38 @@ export function RealtimeECGDisplay({
         const cutoffTime = currentTime - timeWindow;
 
         // Filter to show only last 5 seconds of data
-        const recentData = data.filter(point => point.timestamp > cutoffTime);
+        const recentData = currentData.filter(point => point.timestamp > cutoffTime);
         
-        let isFirstPoint = true;
+        if (recentData.length > 0) {
+          console.log(`[RealtimeDisplay] Rendering ${recentData.length} points`);
+          let isFirstPoint = true;
+          let lastPoint: ECGDataPoint | null = null;
 
-        recentData.forEach(point => {
-          const x = ((point.timestamp - cutoffTime) / 1000) * config.timeScale * pixelsPerMm;
-          const y = baseline - point.value * config.amplitude * pixelsPerMm * 3;
+          recentData.forEach(point => {
+            const x = ((point.timestamp - cutoffTime) / 1000) * config.timeScale * pixelsPerMm;
+            const y = baseline - point.value * config.amplitude * pixelsPerMm * 3;
 
-          if (x >= 0 && x <= width) {
-            if (isFirstPoint) {
-              ctx.moveTo(x, y);
-              isFirstPoint = false;
-            } else {
-              ctx.lineTo(x, y);
+            if (x >= 0 && x <= width) {
+              if (isFirstPoint) {
+                ctx.moveTo(x, y);
+                isFirstPoint = false;
+              } else if (lastPoint) {
+                // Add smooth interpolation between points
+                const steps = 5;
+                for (let i = 1; i <= steps; i++) {
+                  const t = i / steps;
+                  const interpolated = interpolatePoints(lastPoint, point, t);
+                  const ix = ((interpolated.timestamp - cutoffTime) / 1000) * config.timeScale * pixelsPerMm;
+                  const iy = baseline - interpolated.value * config.amplitude * pixelsPerMm * 3;
+                  ctx.lineTo(ix, iy);
+                }
+              }
+              lastPoint = point;
             }
-          }
-        });
+          });
 
-        ctx.stroke();
+          ctx.stroke();
+        }
         ctx.restore();
       }
 
@@ -95,9 +117,11 @@ export function RealtimeECGDisplay({
       animationFrameRef.current = requestAnimationFrame(renderFrame);
     };
 
+    console.log('[RealtimeDisplay] Starting animation frame loop');
     animationFrameRef.current = requestAnimationFrame(renderFrame);
 
     const resizeObserver = new ResizeObserver(() => {
+      console.log('[RealtimeDisplay] Container resized');
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -107,12 +131,13 @@ export function RealtimeECGDisplay({
     resizeObserver.observe(container);
 
     return () => {
+      console.log('[RealtimeDisplay] Cleaning up');
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
       resizeObserver.disconnect();
     };
-  }, [data, config]);
+  }, [config]);
 
   return (
     <div className={cn("relative bg-black rounded-lg shadow-md overflow-hidden", className)} ref={containerRef}>

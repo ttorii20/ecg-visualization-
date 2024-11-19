@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ECGDisplay } from '@/components/ui/ecg-display';
 import { DetailedECGDisplay } from '@/components/ui/detailed-ecg-display';
 import { RealtimeECGDisplay } from '@/components/ui/realtime-ecg-display';
@@ -10,48 +10,91 @@ export function Demo() {
   const [data, setData] = useState<ECGDataPoint[]>([]);
   const [realtimeData, setRealtimeData] = useState<ECGDataPoint[]>([]);
   const [selectedSegmentData, setSelectedSegmentData] = useState<ECGDataPoint[]>([]);
+  
+  // Refs for intervals to ensure proper cleanup
+  const timelineIntervalRef = useRef<NodeJS.Timeout>();
+  const realtimeIntervalRef = useRef<NodeJS.Timeout>();
 
   // Buffer size calculation based on sampling rate
   const bufferSeconds = 1800; // 30 minutes
   const batchSeconds = 20; // 20-second batches
   const realtimeBufferSeconds = 10; // Keep 10 seconds of data for realtime display
 
+  // Setup data generation and update intervals
   useEffect(() => {
-    // Generate initial data for 30 minutes
+    console.log('[Demo] Initializing ECG data generation');
+    
+    // Generate initial timeline data
     const initialData = generateMockECG(bufferSeconds, config);
+    console.log(`[Demo] Generated initial timeline data: ${initialData.length} points`);
     setData(initialData);
 
-    // Initialize realtime buffer with last 5 seconds of data
+    // Generate initial realtime data
     const initialRealtimeData = generateMockECG(realtimeBufferSeconds, config);
+    console.log(`[Demo] Generated initial realtime data: ${initialRealtimeData.length} points`);
     setRealtimeData(initialRealtimeData);
 
-    // Update timeline data in 20-second batches
-    const timelineInterval = setInterval(() => {
+    return () => {
+      console.log('[Demo] Cleaning up intervals');
+      if (timelineIntervalRef.current) {
+        clearInterval(timelineIntervalRef.current);
+      }
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+      }
+    };
+  }, []); // Run only on mount
+
+  // Handle timeline data updates
+  useEffect(() => {
+    console.log('[Demo] Setting up timeline update interval');
+    
+    const updateTimelineData = () => {
       const newBatchData = generateMockECG(batchSeconds, config);
       setData(prev => {
         const cutoffTime = Date.now() - (bufferSeconds * 1000);
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
-        return [...filteredPrev, ...newBatchData];
+        const updatedData = [...filteredPrev, ...newBatchData];
+        console.log(`[Demo] Timeline update: ${updatedData.length} points`);
+        return updatedData;
       });
-    }, batchSeconds * 1000);
+    };
 
-    // Update realtime data more frequently (30fps)
-    const realtimeInterval = setInterval(() => {
-      const newRealtimeData = generateMockECG(0.033, config); // ~33ms of data
+    timelineIntervalRef.current = setInterval(updateTimelineData, batchSeconds * 1000);
+
+    return () => {
+      if (timelineIntervalRef.current) {
+        clearInterval(timelineIntervalRef.current);
+      }
+    };
+  }, [config, bufferSeconds, batchSeconds]);
+
+  // Handle realtime data updates
+  useEffect(() => {
+    console.log('[Demo] Setting up realtime update interval');
+    
+    const updateRealtimeData = () => {
+      const newRealtimeData = generateMockECG(0.033, config);
       setRealtimeData(prev => {
         const cutoffTime = Date.now() - (realtimeBufferSeconds * 1000);
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
-        return [...filteredPrev, ...newRealtimeData];
+        const updatedData = [...filteredPrev, ...newRealtimeData];
+        console.log(`[Demo] Realtime update: ${updatedData.length} points`);
+        return updatedData;
       });
-    }, 33);
+    };
+
+    realtimeIntervalRef.current = setInterval(updateRealtimeData, 33); // ~30fps
 
     return () => {
-      clearInterval(timelineInterval);
-      clearInterval(realtimeInterval);
+      if (realtimeIntervalRef.current) {
+        clearInterval(realtimeIntervalRef.current);
+      }
     };
-  }, [config, bufferSeconds, batchSeconds, realtimeBufferSeconds]);
+  }, [config, realtimeBufferSeconds]);
 
   const handleSegmentSelect = useCallback(({ data }: { data: ECGDataPoint[] }) => {
+    console.log(`[Demo] Selected segment with ${data.length} points`);
     setSelectedSegmentData(data);
   }, []);
 

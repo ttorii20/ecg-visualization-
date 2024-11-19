@@ -69,17 +69,17 @@ export const decimateData = (data: ECGDataPoint[], targetPoints: number): ECGDat
 
 // Generate realistic ECG waveform with variability
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
+  console.log(`[ECGUtils] Generating ${duration}s of ECG data at ${config.samplingRate}Hz`);
   const points: ECGDataPoint[] = [];
   const samplesCount = Math.floor(duration * config.samplingRate);
   const now = Date.now();
   
-  // Align start time to 20-second boundary
-  const batchSize = 20; // 20-second batch size
-  const startTime = Math.floor(now / (batchSize * 1000)) * (batchSize * 1000);
+  // For realtime view, use exact current time
+  const startTime = duration <= 0.1 ? now : Math.floor(now / 1000) * 1000;
   
   // Base ECG parameters
   const baseHeartRate = 60; // Base heart rate in BPM
-  const processingBatchSize = config.samplingRate * 5;
+  const processingBatchSize = Math.min(config.samplingRate * 5, samplesCount);
   
   // Respiratory modulation (approximately 12 breaths per minute)
   const respirationRate = 0.2; // Hz
@@ -120,9 +120,9 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
       // QRS complex with natural variation
       const qrsCenter = 0.4;
       const qrsVariation = 0.002 * Math.random();
-      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02 + qrsVariation)) * 200, 2)); // Q
-      value += (3.0 + Math.random() * 0.2) * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R
-      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02 + qrsVariation)) * 200, 2)); // S
+      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02 + qrsVariation)) * 200, 2));
+      value += (3.0 + Math.random() * 0.2) * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2));
+      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02 + qrsVariation)) * 200, 2));
       
       // T wave with increased variability
       const tWaveAmplitude = 0.7 + Math.random() * 0.3;
@@ -135,7 +135,8 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
       const noise = (Math.random() - 0.5) * 0.05;
       value += noise;
       
-      const timestamp = startTime - (duration * 1000) + (t * 1000);
+      // Calculate precise timestamp
+      const timestamp = startTime - (duration * 1000) + Math.floor(t * 1000);
       points.push({
         value,
         timestamp,
@@ -143,6 +144,7 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
     }
   }
   
+  console.log(`[ECGUtils] Generated ${points.length} points`);
   return points;
 };
 
