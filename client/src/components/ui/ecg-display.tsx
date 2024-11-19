@@ -22,11 +22,29 @@ export function ECGDisplay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pixelsPerMm, setPixelsPerMm] = useState(2);
+  const [selectedSegment, setSelectedSegment] = useState<number | null>(null);
   const rowHeight = 120; // Height of each ECG row
   const timeWindow = 60; // 60 seconds per row
   const totalDuration = 1800; // 30 minutes total
   const rows = Math.ceil(totalDuration / timeWindow);
   const totalHeight = rows * rowHeight;
+  
+  const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top + container.scrollTop;
+    
+    const row = Math.floor(y / rowHeight);
+    const timePerPixel = timeWindow / width;
+    const clickTime = x * timePerPixel;
+    const segment = Math.floor(clickTime / 20);
+    
+    setSelectedSegment(row * 3 + segment); // 3 segments per row (60/20)
+  };
   
   // Render function now triggered by data or config changes
   useEffect(() => {
@@ -68,7 +86,7 @@ export function ECGDisplay({
       // Draw grid with time markers for this row
       ctx.save();
       ctx.translate(0, rowY);
-      drawGrid(ctx, width, rowHeight, config, pixelsPerMm, rowStartTime * 1000, rowHeight, false);
+      drawGrid(ctx, width, rowHeight, config, pixelsPerMm, rowStartTime * 1000, rowHeight);
       ctx.restore();
       
       // Draw timestamp label
@@ -77,6 +95,18 @@ export function ECGDisplay({
       ctx.font = '12px monospace';
       ctx.fillText(formatTimestamp(rowStartTime * 1000), 5, rowY + 15);
       ctx.restore();
+      
+      // Draw selected segment highlight
+      const rowSegments = 3; // 60 seconds / 20 seconds = 3 segments per row
+      for (let segment = 0; segment < rowSegments; segment++) {
+        if (selectedSegment === row * rowSegments + segment) {
+          ctx.save();
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
+          const segmentWidth = width / rowSegments;
+          ctx.fillRect(segment * segmentWidth, rowY, segmentWidth, rowHeight);
+          ctx.restore();
+        }
+      }
       
       // Filter and decimate data for this row
       const rowData = data.filter(point => {
@@ -124,7 +154,7 @@ export function ECGDisplay({
         ctx.restore();
       }
     }
-  }, [data, config, width, height, totalHeight, rowHeight, pixelsPerMm]);
+  }, [data, config, width, height, totalHeight, rowHeight, pixelsPerMm, selectedSegment]);
 
   return (
     <div className={cn("relative bg-black rounded-lg shadow-md overflow-hidden", className)}>
@@ -136,6 +166,7 @@ export function ECGDisplay({
           <canvas
             ref={canvasRef}
             className="absolute top-0 left-0"
+            onClick={handleCanvasClick}
           />
         </div>
       </ScrollArea>

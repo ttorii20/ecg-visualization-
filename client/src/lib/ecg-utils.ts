@@ -136,43 +136,31 @@ export const drawGrid = (
   pixelsPerMm: number,
   startTime: number,
   rowHeight: number,
-  showTimeMarkers = false,
 ) => {
   ctx.save();
   
-  // Draw minor grid lines
-  ctx.strokeStyle = 'rgba(0, 255, 0, 0.2)';
-  ctx.lineWidth = 0.5;
-  
-  for (let x = 0; x < width; x += config.gridSize * pixelsPerMm) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  
-  for (let y = 0; y < height; y += config.gridSize * pixelsPerMm) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-  
-  // Draw major grid lines
-  ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+  // Draw horizontal amplitude reference lines
+  ctx.strokeStyle = '#00FF00';
   ctx.lineWidth = 1;
+  const horizontalSpacing = config.gridSize * 5 * pixelsPerMm; // Major grid lines only
   
-  for (let x = 0; x < width; x += config.gridSize * 5 * pixelsPerMm) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  
-  for (let y = 0; y < height; y += config.gridSize * 5 * pixelsPerMm) {
+  for (let y = 0; y < height; y += horizontalSpacing) {
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  
+  // Draw vertical time markers at 20-second intervals
+  const secondsPerMm = 1 / config.timeScale;
+  const pixelsPerSecond = pixelsPerMm / secondsPerMm;
+  const intervalSeconds = 20; // 20-second intervals
+  const intervalWidth = intervalSeconds * pixelsPerSecond;
+  
+  for (let x = 0; x < width; x += intervalWidth) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
     ctx.stroke();
   }
   
