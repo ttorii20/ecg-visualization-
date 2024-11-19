@@ -12,7 +12,7 @@ export type ECGConfiguration = {
 };
 
 export const DEFAULT_CONFIG: ECGConfiguration = {
-  samplingRate: 128,
+  samplingRate: 128, // Fixed at 128Hz as per requirements
   timeScale: 25,
   amplitude: 10,
   gridSize: 5,
@@ -67,7 +67,7 @@ export const decimateData = (data: ECGDataPoint[], targetPoints: number): ECGDat
   return decimated;
 };
 
-// Generate realistic ECG waveform with variability
+// Generate realistic ECG waveform with physiological variability
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
   console.log(`[ECGUtils] Generating ${duration}s of ECG data at ${config.samplingRate}Hz`);
   const points: ECGDataPoint[] = [];
@@ -77,16 +77,22 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
   // For realtime view, use exact current time
   const startTime = duration <= 0.1 ? now : Math.floor(now / 1000) * 1000;
   
-  // Base ECG parameters
-  const baseHeartRate = 60; // Base heart rate in BPM
-  const processingBatchSize = Math.min(config.samplingRate * 5, samplesCount);
+  // Timing constants (in seconds)
+  const QRS_DURATION = 0.09; // 90ms QRS duration
+  const P_DURATION = 0.09; // 90ms P wave duration
+  const PR_INTERVAL = 0.16; // 160ms PR interval
+  const QT_INTERVAL = 0.38; // 380ms QT interval
+  
+  // Initialize physiological parameters
+  let baseHeartRate = 75; // Base heart rate in BPM
+  let baselineWander = 0;
+  let lastBaselineUpdate = 0;
   
   // Respiratory modulation (approximately 12 breaths per minute)
   const respirationRate = 0.2; // Hz
+  const respirationAmplitude = 0.2; // mV
   
-  // Initialize noise generators
-  let baselineWander = 0;
-  let lastBaselineUpdate = 0;
+  const processingBatchSize = Math.min(config.samplingRate * 5, samplesCount);
   
   for (let batchStart = 0; batchStart < samplesCount; batchStart += processingBatchSize) {
     const batchEnd = Math.min(batchStart + processingBatchSize, samplesCount);
@@ -94,46 +100,68 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
     for (let i = batchStart; i < batchEnd; i++) {
       const t = i / config.samplingRate;
       
-      // Add heart rate variability (±5 BPM)
-      const heartRateVariability = Math.sin(t * 0.1) * 5;
+      // Heart rate variability with respiratory sinus arrhythmia
+      const respiratoryPhase = 2 * Math.PI * respirationRate * t;
+      const heartRateVariability = 20 * Math.sin(respiratoryPhase); // ±20 BPM variation
       const instantaneousHeartRate = baseHeartRate + heartRateVariability;
       const cycleLength = 60 / instantaneousHeartRate;
-      const tInCycle = t % cycleLength;
+      const tInCycle = (t % cycleLength) / cycleLength; // Normalized time in cardiac cycle
       
-      // Generate baseline wander (slow variation)
-      if (t - lastBaselineUpdate >= 0.1) { // Update every 100ms
-        baselineWander += (Math.random() - 0.5) * 0.02;
-        baselineWander *= 0.95; // Decay factor
+      // Generate baseline wander (0.05-0.5 Hz)
+      if (t - lastBaselineUpdate >= 0.1) {
+        const baselineFreq = 0.05 + Math.random() * 0.45;
+        baselineWander = 0.2 * Math.sin(2 * Math.PI * baselineFreq * t);
         lastBaselineUpdate = t;
       }
       
       // Add respiratory modulation
-      const respiratoryComponent = Math.sin(2 * Math.PI * respirationRate * t) * 0.1;
+      const respiratoryComponent = respirationAmplitude * Math.sin(respiratoryPhase);
+      
+      // Beat-to-beat amplitude variation (±10%)
+      const amplitudeVariation = 1 + (Math.random() * 0.2 - 0.1);
       
       // Generate each component of the ECG wave
       let value = 0;
       
-      // P wave with slight variation
-      const pAmplitude = 0.25 + Math.random() * 0.1;
-      value += pAmplitude * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
+      // P wave (rounded, symmetric, 80-100ms duration)
+      const pCenter = 0.16; // PR interval - half P duration
+      const pAmplitude = 0.15 * amplitudeVariation;
+      value += pAmplitude * Math.exp(-Math.pow((tInCycle - pCenter) * 25, 2));
       
-      // QRS complex with natural variation
+      // QRS complex
       const qrsCenter = 0.4;
-      const qrsVariation = 0.002 * Math.random();
-      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02 + qrsVariation)) * 200, 2));
-      value += (3.0 + Math.random() * 0.2) * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2));
-      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02 + qrsVariation)) * 200, 2));
+      const qrsTiming = (tInCycle - qrsCenter) * 200; // Compress timing for sharp QRS
       
-      // T wave with increased variability
-      const tWaveAmplitude = 0.7 + Math.random() * 0.3;
-      value += tWaveAmplitude * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
+      // Q wave (-0.1 to -0.2 mV)
+      const qAmplitude = -(0.15 + Math.random() * 0.05) * amplitudeVariation;
+      value += qAmplitude * Math.exp(-Math.pow(qrsTiming + 1.5, 2));
+      
+      // R wave (1.0 to 1.5 mV)
+      const rAmplitude = (1.25 + Math.random() * 0.25) * amplitudeVariation;
+      value += rAmplitude * Math.exp(-Math.pow(qrsTiming, 2));
+      
+      // S wave (-0.2 to -0.3 mV)
+      const sAmplitude = -(0.25 + Math.random() * 0.05) * amplitudeVariation;
+      value += sAmplitude * Math.exp(-Math.pow(qrsTiming - 1.5, 2));
+      
+      // T wave (asymmetric, gradual upslope, faster downslope)
+      const tCenter = qrsCenter + QT_INTERVAL / cycleLength;
+      const tAmplitude = 0.3 * amplitudeVariation;
+      const tPhase = (tInCycle - tCenter) * 15;
+      if (tPhase < 0) {
+        // Gradual upslope
+        value += tAmplitude * Math.exp(-Math.pow(tPhase * 1.2, 2));
+      } else {
+        // Faster downslope
+        value += tAmplitude * Math.exp(-Math.pow(tPhase * 1.5, 2));
+      }
       
       // Add baseline wander and respiratory modulation
       value += baselineWander + respiratoryComponent;
       
-      // Add high-frequency noise
-      const noise = (Math.random() - 0.5) * 0.05;
-      value += noise;
+      // Add realistic high-frequency noise (EMG-like)
+      const emgNoise = (Math.random() - 0.5) * 0.03;
+      value += emgNoise;
       
       // Calculate precise timestamp
       const timestamp = startTime - (duration * 1000) + Math.floor(t * 1000);

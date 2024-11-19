@@ -1,3 +1,81 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;
+    --foreground: 120 100% 50%;
+    --card: 0 0% 3%;
+    --card-foreground: 120 100% 50%;
+    --primary: 120 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    --border: 120 100% 20%;
+    --ring: 120 100% 50%;
+    --popover: 0 0% 3%;
+    --popover-foreground: 120 100% 50%;
+    --secondary: 120 100% 10%;
+    --secondary-foreground: 120 100% 50%;
+    --muted: 120 100% 10%;
+    --muted-foreground: 120 100% 40%;
+    --accent: 120 100% 10%;
+    --accent-foreground: 120 100% 50%;
+    --destructive: 0 100% 30%;
+    --destructive-foreground: 0 100% 90%;
+    --input: 120 100% 20%;
+    --radius: 0.5rem;
+  }
+
+  body {
+    @apply bg-black text-[#00FF00];
+  }
+}
+
+@layer components {
+  .ecg-container {
+    @apply relative rounded-lg shadow-lg overflow-hidden;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+  }
+
+  .ecg-grid {
+    @apply absolute inset-0;
+    background-image: 
+      linear-gradient(rgba(0, 255, 0, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 255, 0, 0.1) 1px, transparent 1px);
+  }
+
+  .ecg-trace {
+    @apply stroke-[#00FF00] stroke-2 fill-none;
+    filter: drop-shadow(0 0 2px rgba(0, 255, 0, 0.5));
+  }
+
+  .ecg-controls {
+    @apply bg-black/90 backdrop-blur-sm rounded-lg p-4 shadow-lg;
+    border: 1px solid rgba(0, 255, 0, 0.2);
+  }
+
+  .ecg-label {
+    @apply text-[#00FF00] font-medium mb-2;
+    text-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
+  }
+
+  .ecg-button {
+    @apply bg-[#00FF00]/10 hover:bg-[#00FF00]/20 text-[#00FF00] 
+           px-4 py-2 rounded-md transition-colors duration-200
+           border border-[#00FF00]/30 hover:border-[#00FF00]/50;
+  }
+
+  .ecg-select {
+    @apply bg-black border border-[#00FF00]/30 text-[#00FF00]
+           rounded-md focus:ring-[#00FF00]/30 focus:border-[#00FF00]/50;
+  }
+
+  .ecg-slider {
+    @apply bg-[#00FF00]/20 rounded-full;
+  }
+
+  .ecg-slider-thumb {
+    @apply bg-[#00FF00] rounded-full shadow-lg
+           shadow-[#00FF00]/20 border-2 border-black;
+  }
+}

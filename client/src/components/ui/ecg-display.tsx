@@ -30,7 +30,7 @@ export function ECGDisplay({
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || data.length === 0) return;
     
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
@@ -45,12 +45,15 @@ export function ECGDisplay({
     
     setSelectedSegment(newSelectedSegment);
     
-    if (onSegmentSelect) {
-      const segmentStartTime = Date.now() - (totalDuration * 1000) + (row * timeWindow + segment * 20) * 1000;
+    if (onSegmentSelect && data.length > 0) {
+      // Calculate segment time based on data timeline
+      const segmentStartTime = data[0].timestamp + (row * timeWindow + segment * 20) * 1000;
       const segmentEndTime = segmentStartTime + 20000;
       
+      // Filter data points using exact timestamps
       const segmentData = data.filter(point => 
-        point.timestamp >= segmentStartTime && point.timestamp < segmentEndTime
+        point.timestamp >= segmentStartTime && 
+        point.timestamp < segmentEndTime
       );
       
       onSegmentSelect({ index: newSelectedSegment, data: segmentData });
