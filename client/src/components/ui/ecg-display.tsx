@@ -46,11 +46,12 @@ export function ECGDisplay({
     setSelectedSegment(newSelectedSegment);
     
     if (onSegmentSelect && data.length > 0) {
-      // Calculate segment time based on data timeline
-      const segmentStartTime = data[0].timestamp + (row * timeWindow + segment * 20) * 1000;
+      // Use the first data point's timestamp as the base reference
+      const baseTime = data[0].timestamp;
+      const segmentStartTime = baseTime + (row * timeWindow + segment * 20) * 1000;
       const segmentEndTime = segmentStartTime + 20000;
       
-      // Filter data points using exact timestamps
+      // Filter data points within the selected time window
       const segmentData = data.filter(point => 
         point.timestamp >= segmentStartTime && 
         point.timestamp < segmentEndTime
@@ -63,7 +64,7 @@ export function ECGDisplay({
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!canvas || !container) return;
+    if (!canvas || !container || data.length === 0) return;
 
     const updateCanvas = () => {
       const width = container.clientWidth;
@@ -86,7 +87,8 @@ export function ECGDisplay({
       ctx.fillStyle = 'black';
       ctx.fillRect(0, 0, width, totalHeight);
 
-      const currentTime = Date.now() / 1000;
+      // Use the first data point's timestamp as base reference
+      const baseTime = data[0].timestamp / 1000;
       const scrollTop = container.scrollTop;
       const visibleRows = Math.ceil(container.clientHeight / rowHeight) + 1;
       const startRow = Math.floor(scrollTop / rowHeight);
@@ -94,7 +96,7 @@ export function ECGDisplay({
 
       // Draw visible rows
       for (let row = startRow; row < endRow; row++) {
-        const rowStartTime = currentTime - totalDuration + (row * timeWindow);
+        const rowStartTime = baseTime + (row * timeWindow);
         const rowEndTime = rowStartTime + timeWindow;
         const rowY = row * rowHeight;
 
