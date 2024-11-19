@@ -1,9 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { ECGDisplay } from '@/components/ui/ecg-display';
-import { DetailedECGDisplay } from '@/components/ui/detailed-ecg-display';
-import { RealtimeECGDisplay } from '@/components/ui/realtime-ecg-display';
-import { ECGControls } from '@/components/ui/ecg-controls';
-import { DEFAULT_CONFIG, generateMockECG, type ECGConfiguration, type ECGDataPoint } from '@/lib/ecg-utils';
+import {
+  ECGDisplay,
+  DetailedECGDisplay,
+  RealtimeECGDisplay,
+  ECGControls,
+  DEFAULT_CONFIG,
+  generateMockECG,
+  type ECGConfiguration,
+  type ECGDataPoint
+} from '@/lib/ecg-viz';
 
 export function Demo() {
   const [config, setConfig] = useState<ECGConfiguration>(DEFAULT_CONFIG);
