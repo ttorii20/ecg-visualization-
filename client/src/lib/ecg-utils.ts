@@ -166,3 +166,52 @@ export const drawGrid = (
   
   ctx.restore();
 };
+
+// Draw detailed grid for ECG paper
+export const drawDetailedGrid = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  config: ECGConfiguration,
+  pixelsPerMm: number,
+) => {
+  ctx.save();
+
+  // Draw minor grid lines
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.15)';
+  ctx.lineWidth = 0.5;
+  
+  for (let x = 0; x < width; x += config.gridSize * pixelsPerMm) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  
+  for (let y = 0; y < height; y += config.gridSize * pixelsPerMm) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  // Draw major grid lines
+  ctx.strokeStyle = 'rgba(0, 255, 0, 0.3)';
+  ctx.lineWidth = 1;
+  
+  for (let x = 0; x < width; x += config.gridSize * 5 * pixelsPerMm) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+  
+  for (let y = 0; y < height; y += config.gridSize * 5 * pixelsPerMm) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+};

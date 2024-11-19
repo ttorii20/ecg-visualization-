@@ -10,6 +10,7 @@ interface ECGDisplayProps {
   className?: string;
   width?: number;
   height?: number;
+  onSegmentSelect?: (segment: { index: number; data: ECGDataPoint[] }) => void;
 }
 
 export function ECGDisplay({
@@ -18,6 +19,7 @@ export function ECGDisplay({
   className,
   width = 800,
   height = 600,
+  onSegmentSelect,
 }: ECGDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -42,8 +44,20 @@ export function ECGDisplay({
     const timePerPixel = timeWindow / width;
     const clickTime = x * timePerPixel;
     const segment = Math.floor(clickTime / 20);
+    const newSelectedSegment = row * 3 + segment;
     
-    setSelectedSegment(row * 3 + segment); // 3 segments per row (60/20)
+    setSelectedSegment(newSelectedSegment);
+    
+    if (onSegmentSelect) {
+      const segmentStartTime = Date.now() - (totalDuration * 1000) + (row * timeWindow + segment * 20) * 1000;
+      const segmentEndTime = segmentStartTime + 20000; // 20 seconds in milliseconds
+      
+      const segmentData = data.filter(point => 
+        point.timestamp >= segmentStartTime && point.timestamp < segmentEndTime
+      );
+      
+      onSegmentSelect({ index: newSelectedSegment, data: segmentData });
+    }
   };
   
   // Render function now triggered by data or config changes
