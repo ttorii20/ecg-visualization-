@@ -37,7 +37,7 @@ export function ECGDisplay({
     ctx.scale(dpr, dpr);
     
     // Calculate display parameters
-    const pixelsPerMm = width / (config.timeScale * 10);
+    const pixelsPerMm = width / (config.timeScale * 10); // 10 seconds visible
     setPixelsPerMm(pixelsPerMm);
     
     const render = () => {
@@ -53,19 +53,34 @@ export function ECGDisplay({
       ctx.strokeStyle = 'black';
       ctx.lineWidth = 1.5;
       
-      const baseline = height / 2;
-      const timeWindow = width / (config.timeScale * pixelsPerMm); // seconds
+      const baseline = height * 0.5; // Center vertically
+      const timeWindow = 10; // 10 seconds visible
       const currentTime = Date.now() / 1000;
+      const startTime = currentTime - timeWindow;
       
-      data.forEach((point, index) => {
-        const x = (point.timestamp / 1000 - (currentTime - timeWindow)) * 
-                 config.timeScale * pixelsPerMm;
-        const y = baseline - point.value * config.amplitude * pixelsPerMm;
-        
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+      let lastX = -1;
+      let lastY = -1;
+      
+      data.forEach((point) => {
+        const pointTime = point.timestamp / 1000;
+        if (pointTime >= startTime && pointTime <= currentTime) {
+          const x = (pointTime - startTime) * config.timeScale * pixelsPerMm;
+          const y = baseline - point.value * config.amplitude * pixelsPerMm * 2; // Doubled amplitude for better visibility
+          
+          if (x >= 0 && x <= width) {
+            if (lastX === -1) {
+              ctx.moveTo(x, y);
+            } else {
+              // Only draw if points are not too far apart
+              if (Math.abs(x - lastX) < 50) {
+                ctx.lineTo(x, y);
+              } else {
+                ctx.moveTo(x, y);
+              }
+            }
+            lastX = x;
+            lastY = y;
+          }
         }
       });
       

@@ -19,16 +19,37 @@ export const DEFAULT_CONFIG: ECGConfiguration = {
   leadConfiguration: 'II',
 };
 
-// Generate mock ECG data for testing
+// Generate realistic ECG waveform
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
   const points: ECGDataPoint[] = [];
   const samplesCount = duration * config.samplingRate;
+  const baselineNoise = 0.05;
+  
+  // ECG wave components timing (in seconds)
+  const heartRate = 60; // 60 BPM
+  const cycleLength = 60 / heartRate;
   
   for (let i = 0; i < samplesCount; i++) {
     const t = i / config.samplingRate;
-    // Simplified ECG waveform generation
-    const value = Math.sin(2 * Math.PI * t) * 0.5 + 
-                  Math.exp(-((t % 1 - 0.2) ** 2) / 0.01) * 1.5;
+    const tInCycle = t % cycleLength;
+    
+    // Generate each component of the ECG wave
+    let value = 0;
+    
+    // P wave (atrial depolarization)
+    value += 0.25 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
+    
+    // QRS complex
+    const qrsCenter = 0.4;
+    value -= 0.3 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
+    value += 1.5 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
+    value -= 0.3 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
+    
+    // T wave (ventricular repolarization)
+    value += 0.35 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
+    
+    // Add some baseline noise
+    value += (Math.random() - 0.5) * baselineNoise;
     
     points.push({
       value,

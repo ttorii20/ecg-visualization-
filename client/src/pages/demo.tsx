@@ -8,15 +8,20 @@ export function Demo() {
   const [data, setData] = useState<ECGDataPoint[]>([]);
 
   useEffect(() => {
-    // Generate initial data
-    const initialData = generateMockECG(10, config);
+    // Generate initial data for 12 seconds (2 extra seconds as buffer)
+    const initialData = generateMockECG(12, config);
     setData(initialData);
 
-    // Update data periodically
+    // Update data more frequently for smoother animation
     const interval = setInterval(() => {
-      const newData = generateMockECG(1, config);
-      setData(prev => [...prev.slice(-config.samplingRate * 10), ...newData]);
-    }, 1000);
+      const newData = generateMockECG(0.2, config); // Generate 200ms of data
+      setData(prev => {
+        // Keep last 12 seconds of data
+        const cutoffTime = Date.now() - 12000;
+        const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
+        return [...filteredPrev, ...newData];
+      });
+    }, 100); // Update every 100ms for smoother animation
 
     return () => clearInterval(interval);
   }, [config]);
