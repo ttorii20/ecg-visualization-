@@ -28,6 +28,8 @@ export function ECGDisplay({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
+    console.log('Canvas setup:', { width, height, dpr: window.devicePixelRatio });
+    
     // Set up high DPI canvas
     const dpr = window.devicePixelRatio || 1;
     canvas.width = width * dpr;
@@ -39,6 +41,12 @@ export function ECGDisplay({
     // Calculate display parameters
     const pixelsPerMm = width / (config.timeScale * 10); // 10 seconds visible
     setPixelsPerMm(pixelsPerMm);
+    
+    console.log('Display parameters:', {
+      pixelsPerMm,
+      timeScale: config.timeScale,
+      amplitude: config.amplitude,
+    });
     
     const render = () => {
       // Clear canvas
@@ -58,14 +66,22 @@ export function ECGDisplay({
       const currentTime = Date.now() / 1000;
       const startTime = currentTime - timeWindow;
       
+      console.log('Render frame:', {
+        dataPoints: data.length,
+        timeWindow,
+        currentTime: new Date(currentTime * 1000).toISOString(),
+        startTime: new Date(startTime * 1000).toISOString(),
+      });
+      
       let lastX = -1;
       let lastY = -1;
+      let pointsDrawn = 0;
       
       data.forEach((point) => {
         const pointTime = point.timestamp / 1000;
         if (pointTime >= startTime && pointTime <= currentTime) {
           const x = (pointTime - startTime) * config.timeScale * pixelsPerMm;
-          const y = baseline - point.value * config.amplitude * pixelsPerMm * 2; // Doubled amplitude for better visibility
+          const y = baseline - point.value * config.amplitude * pixelsPerMm * 3; // Tripled amplitude for better visibility
           
           if (x >= 0 && x <= width) {
             if (lastX === -1) {
@@ -80,10 +96,12 @@ export function ECGDisplay({
             }
             lastX = x;
             lastY = y;
+            pointsDrawn++;
           }
         }
       });
       
+      console.log('Points drawn:', pointsDrawn);
       ctx.stroke();
       
       requestAnimationFrame(render);

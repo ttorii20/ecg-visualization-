@@ -24,6 +24,9 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
   const points: ECGDataPoint[] = [];
   const samplesCount = duration * config.samplingRate;
   const baselineNoise = 0.05;
+  const now = Date.now();
+  
+  console.log('Generating ECG data:', { duration, samplesCount, now });
   
   // ECG wave components timing (in seconds)
   const heartRate = 60; // 60 BPM
@@ -37,26 +40,28 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
     let value = 0;
     
     // P wave (atrial depolarization)
-    value += 0.25 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
+    value += 0.5 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
     
     // QRS complex
     const qrsCenter = 0.4;
-    value -= 0.3 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
-    value += 1.5 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
-    value -= 0.3 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
+    value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
+    value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave (increased amplitude)
+    value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
     
     // T wave (ventricular repolarization)
-    value += 0.35 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
+    value += 0.7 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
     
     // Add some baseline noise
     value += (Math.random() - 0.5) * baselineNoise;
     
+    const timestamp = now - (duration * 1000) + (t * 1000); // Align timestamps with current time
     points.push({
       value,
-      timestamp: t * 1000, // Convert to milliseconds
+      timestamp,
     });
   }
   
+  console.log('Generated points sample:', points.slice(0, 2));
   return points;
 };
 

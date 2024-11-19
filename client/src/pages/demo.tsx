@@ -10,16 +10,33 @@ export function Demo() {
   useEffect(() => {
     // Generate initial data for 12 seconds (2 extra seconds as buffer)
     const initialData = generateMockECG(12, config);
+    console.log('Initial data generated:', {
+      length: initialData.length,
+      firstPoint: initialData[0],
+      lastPoint: initialData[initialData.length - 1],
+    });
     setData(initialData);
 
     // Update data more frequently for smoother animation
     const interval = setInterval(() => {
       const newData = generateMockECG(0.2, config); // Generate 200ms of data
       setData(prev => {
-        // Keep last 12 seconds of data
         const cutoffTime = Date.now() - 12000;
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
-        return [...filteredPrev, ...newData];
+        const updatedData = [...filteredPrev, ...newData];
+        
+        console.log('Data update:', {
+          prevLength: prev.length,
+          filteredLength: filteredPrev.length,
+          newDataLength: newData.length,
+          totalLength: updatedData.length,
+          timeRange: {
+            start: new Date(updatedData[0]?.timestamp).toISOString(),
+            end: new Date(updatedData[updatedData.length - 1]?.timestamp).toISOString(),
+          },
+        });
+        
+        return updatedData;
       });
     }, 100); // Update every 100ms for smoother animation
 
