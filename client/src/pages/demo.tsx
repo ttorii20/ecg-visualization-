@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ECGDisplay } from '@/components/ui/ecg-display';
 import { ECGControls } from '@/components/ui/ecg-controls';
 import { DEFAULT_CONFIG, generateMockECG, type ECGConfiguration, type ECGDataPoint } from '@/lib/ecg-utils';
@@ -7,41 +7,28 @@ export function Demo() {
   const [config, setConfig] = useState<ECGConfiguration>(DEFAULT_CONFIG);
   const [data, setData] = useState<ECGDataPoint[]>([]);
 
+  // Buffer size calculation based on sampling rate
+  const bufferSeconds = 12; // 10 seconds visible + 2 seconds buffer
+  const updateInterval = 1000 / 30; // ~30fps update rate
+  const chunkDuration = updateInterval / 1000; // Convert ms to seconds
+
   useEffect(() => {
-    // Generate initial data for 12 seconds (2 extra seconds as buffer)
-    const initialData = generateMockECG(12, config);
-    console.log('Initial data generated:', {
-      length: initialData.length,
-      firstPoint: initialData[0],
-      lastPoint: initialData[initialData.length - 1],
-    });
+    // Generate initial data
+    const initialData = generateMockECG(bufferSeconds, config);
     setData(initialData);
 
-    // Update data more frequently for smoother animation
+    // Update data at ~30fps
     const interval = setInterval(() => {
-      const newData = generateMockECG(0.2, config); // Generate 200ms of data
+      const newData = generateMockECG(chunkDuration, config);
       setData(prev => {
-        const cutoffTime = Date.now() - 12000;
+        const cutoffTime = Date.now() - (bufferSeconds * 1000);
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
-        const updatedData = [...filteredPrev, ...newData];
-        
-        console.log('Data update:', {
-          prevLength: prev.length,
-          filteredLength: filteredPrev.length,
-          newDataLength: newData.length,
-          totalLength: updatedData.length,
-          timeRange: {
-            start: new Date(updatedData[0]?.timestamp).toISOString(),
-            end: new Date(updatedData[updatedData.length - 1]?.timestamp).toISOString(),
-          },
-        });
-        
-        return updatedData;
+        return [...filteredPrev, ...newData];
       });
-    }, 100); // Update every 100ms for smoother animation
+    }, updateInterval);
 
     return () => clearInterval(interval);
-  }, [config]);
+  }, [config, bufferSeconds, updateInterval, chunkDuration]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">

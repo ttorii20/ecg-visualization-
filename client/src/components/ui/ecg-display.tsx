@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import type { ECGConfiguration, ECGDataPoint } from '@/lib/ecg-utils';
-import { drawGrid } from '@/lib/ecg-utils';
+import { drawGrid, interpolatePoints } from '@/lib/ecg-utils';
 import { cn } from '@/lib/utils';
 
 interface ECGDisplayProps {
@@ -19,16 +19,79 @@ export function ECGDisplay({
   height = 400,
 }: ECGDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animationFrameRef = useRef<number>();
   const [pixelsPerMm, setPixelsPerMm] = useState(2);
   
-  useEffect(() => {
+  const render = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    console.log('Canvas setup:', { width, height, dpr: window.devicePixelRatio });
+    // Clear canvas
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw grid
+    drawGrid(ctx, width, height, config, pixelsPerMm);
+    
+    // Draw ECG trace
+    ctx.beginPath();
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1.5;
+    
+    const baseline = height * 0.5;
+    const timeWindow = 10; // 10 seconds visible
+    const currentTime = Date.now() / 1000;
+    const startTime = currentTime - timeWindow;
+    
+    let isFirstPoint = true;
+    let lastPoint: ECGDataPoint | null = null;
+    
+    // Filter visible points
+    const visiblePoints = data.filter(point => {
+      const pointTime = point.timestamp / 1000;
+      return pointTime >= startTime && pointTime <= currentTime;
+    });
+    
+    // Draw points with interpolation
+    visiblePoints.forEach((point, index) => {
+      const pointTime = point.timestamp / 1000;
+      const x = (pointTime - startTime) * config.timeScale * pixelsPerMm;
+      const y = baseline - point.value * config.amplitude * pixelsPerMm * 3;
+      
+      if (x >= 0 && x <= width) {
+        if (isFirstPoint) {
+          ctx.moveTo(x, y);
+          isFirstPoint = false;
+        } else if (lastPoint) {
+          // Add interpolated points for smoother curves
+          const steps = 5;
+          for (let i = 1; i <= steps; i++) {
+            const t = i / steps;
+            const interpolated = interpolatePoints(lastPoint, point, t);
+            const ix = ((interpolated.timestamp / 1000) - startTime) * config.timeScale * pixelsPerMm;
+            const iy = baseline - interpolated.value * config.amplitude * pixelsPerMm * 3;
+            ctx.lineTo(ix, iy);
+          }
+        }
+        lastPoint = point;
+      }
+    });
+    
+    ctx.stroke();
+    
+    // Schedule next frame
+    animationFrameRef.current = requestAnimationFrame(render);
+  }, [data, config, width, height, pixelsPerMm]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     
     // Set up high DPI canvas
     const dpr = window.devicePixelRatio || 1;
@@ -39,77 +102,19 @@ export function ECGDisplay({
     ctx.scale(dpr, dpr);
     
     // Calculate display parameters
-    const pixelsPerMm = width / (config.timeScale * 10); // 10 seconds visible
+    const pixelsPerMm = width / (config.timeScale * 10);
     setPixelsPerMm(pixelsPerMm);
     
-    console.log('Display parameters:', {
-      pixelsPerMm,
-      timeScale: config.timeScale,
-      amplitude: config.amplitude,
-    });
+    // Start render loop
+    animationFrameRef.current = requestAnimationFrame(render);
     
-    const render = () => {
-      // Clear canvas
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, width, height);
-      
-      // Draw grid
-      drawGrid(ctx, width, height, config, pixelsPerMm);
-      
-      // Draw ECG trace
-      ctx.beginPath();
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 1.5;
-      
-      const baseline = height * 0.5; // Center vertically
-      const timeWindow = 10; // 10 seconds visible
-      const currentTime = Date.now() / 1000;
-      const startTime = currentTime - timeWindow;
-      
-      console.log('Render frame:', {
-        dataPoints: data.length,
-        timeWindow,
-        currentTime: new Date(currentTime * 1000).toISOString(),
-        startTime: new Date(startTime * 1000).toISOString(),
-      });
-      
-      let lastX = -1;
-      let lastY = -1;
-      let pointsDrawn = 0;
-      
-      data.forEach((point) => {
-        const pointTime = point.timestamp / 1000;
-        if (pointTime >= startTime && pointTime <= currentTime) {
-          const x = (pointTime - startTime) * config.timeScale * pixelsPerMm;
-          const y = baseline - point.value * config.amplitude * pixelsPerMm * 3; // Tripled amplitude for better visibility
-          
-          if (x >= 0 && x <= width) {
-            if (lastX === -1) {
-              ctx.moveTo(x, y);
-            } else {
-              // Only draw if points are not too far apart
-              if (Math.abs(x - lastX) < 50) {
-                ctx.lineTo(x, y);
-              } else {
-                ctx.moveTo(x, y);
-              }
-            }
-            lastX = x;
-            lastY = y;
-            pointsDrawn++;
-          }
-        }
-      });
-      
-      console.log('Points drawn:', pointsDrawn);
-      ctx.stroke();
-      
-      requestAnimationFrame(render);
+    // Cleanup
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
     };
-    
-    const animationFrame = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [data, config, width, height]);
+  }, [config.timeScale, width, height, render]);
 
   return (
     <div className={cn("relative bg-white rounded-lg shadow-md", className)}>

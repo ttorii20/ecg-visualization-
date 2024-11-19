@@ -12,7 +12,7 @@ export type ECGConfiguration = {
 };
 
 export const DEFAULT_CONFIG: ECGConfiguration = {
-  samplingRate: 250, // Hz
+  samplingRate: 128, // Changed to 128Hz as requested
   timeScale: 25, // mm/s
   amplitude: 10, // mm/mV
   gridSize: 5, // mm
@@ -22,11 +22,9 @@ export const DEFAULT_CONFIG: ECGConfiguration = {
 // Generate realistic ECG waveform
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
   const points: ECGDataPoint[] = [];
-  const samplesCount = duration * config.samplingRate;
+  const samplesCount = Math.floor(duration * config.samplingRate);
   const baselineNoise = 0.05;
   const now = Date.now();
-  
-  console.log('Generating ECG data:', { duration, samplesCount, now });
   
   // ECG wave components timing (in seconds)
   const heartRate = 60; // 60 BPM
@@ -45,7 +43,7 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
     // QRS complex
     const qrsCenter = 0.4;
     value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
-    value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave (increased amplitude)
+    value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
     value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
     
     // T wave (ventricular repolarization)
@@ -54,15 +52,22 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
     // Add some baseline noise
     value += (Math.random() - 0.5) * baselineNoise;
     
-    const timestamp = now - (duration * 1000) + (t * 1000); // Align timestamps with current time
+    const timestamp = now - (duration * 1000) + (t * 1000);
     points.push({
       value,
       timestamp,
     });
   }
   
-  console.log('Generated points sample:', points.slice(0, 2));
   return points;
+};
+
+// Linear interpolation function for smoother rendering
+export const interpolatePoints = (p1: ECGDataPoint, p2: ECGDataPoint, t: number): ECGDataPoint => {
+  return {
+    value: p1.value + (p2.value - p1.value) * t,
+    timestamp: p1.timestamp + (p2.timestamp - p1.timestamp) * t
+  };
 };
 
 // Draw grid lines for ECG paper
