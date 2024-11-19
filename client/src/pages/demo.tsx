@@ -26,7 +26,7 @@ export function Demo() {
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
         return [...filteredPrev, ...newBatchData];
       });
-    }, batchSeconds * 1000); // Convert to milliseconds
+    }, batchSeconds * 1000);
 
     return () => clearInterval(interval);
   }, [config, bufferSeconds, batchSeconds]);
@@ -36,18 +36,23 @@ export function Demo() {
   }, []);
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="w-full min-h-screen bg-black p-4 space-y-6">
       <h1 className="text-3xl font-bold text-center mb-8">
         ECG Timeline View
       </h1>
       
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3 space-y-6">
+      <div className="space-y-6">
+        <div className="w-full max-w-[1600px] mx-auto">
+          <ECGControls
+            config={config}
+            onConfigChange={setConfig}
+          />
+        </div>
+        
+        <div className="w-full max-w-[1600px] mx-auto space-y-6">
           <ECGDisplay
             data={data}
             config={config}
-            width={900}
-            height={600}
             className="w-full"
             onSegmentSelect={handleSegmentSelect}
           />
@@ -55,17 +60,9 @@ export function Demo() {
             <DetailedECGDisplay
               data={selectedSegmentData}
               config={config}
-              width={900}
-              height={250}
               className="w-full"
             />
           )}
-        </div>
-        <div className="lg:col-span-1">
-          <ECGControls
-            config={config}
-            onConfigChange={setConfig}
-          />
         </div>
       </div>
     </div>
