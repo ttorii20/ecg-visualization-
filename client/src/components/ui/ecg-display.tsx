@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ECGConfiguration, ECGDataPoint } from '@/lib/ecg-utils';
 import { drawGrid, interpolatePoints, formatTimestamp, decimateData } from '@/lib/ecg-utils';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,6 @@ export function ECGDisplay({
 }: ECGDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const animationFrameRef = useRef<number>();
   const [pixelsPerMm, setPixelsPerMm] = useState(2);
   const rowHeight = 120; // Height of each ECG row
   const timeWindow = 60; // 60 seconds per row
@@ -29,13 +28,26 @@ export function ECGDisplay({
   const rows = Math.ceil(totalDuration / timeWindow);
   const totalHeight = rows * rowHeight;
   
-  const render = useCallback(() => {
+  // Render function now triggered by data or config changes
+  useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
     if (!canvas || !container) return;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    
+    // Set up high DPI canvas
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = totalHeight * dpr;
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${totalHeight}px`;
+    ctx.scale(dpr, dpr);
+    
+    // Calculate display parameters
+    const pixelsPerMm = width / (config.timeScale * timeWindow);
+    setPixelsPerMm(pixelsPerMm);
     
     // Clear canvas
     ctx.fillStyle = 'white';
@@ -112,40 +124,7 @@ export function ECGDisplay({
         ctx.restore();
       }
     }
-    
-    // Schedule next frame
-    animationFrameRef.current = requestAnimationFrame(render);
   }, [data, config, width, height, totalHeight, rowHeight, pixelsPerMm]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    // Set up high DPI canvas
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = totalHeight * dpr;
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${totalHeight}px`;
-    ctx.scale(dpr, dpr);
-    
-    // Calculate display parameters
-    const pixelsPerMm = width / (config.timeScale * timeWindow);
-    setPixelsPerMm(pixelsPerMm);
-    
-    // Start render loop
-    animationFrameRef.current = requestAnimationFrame(render);
-    
-    // Cleanup
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [config.timeScale, width, totalHeight, render]);
 
   return (
     <div className={cn("relative bg-white rounded-lg shadow-md overflow-hidden", className)}>

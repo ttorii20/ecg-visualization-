@@ -74,13 +74,17 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
   const baselineNoise = 0.05;
   const now = Date.now();
   
+  // Align start time to 20-second boundary
+  const batchSize = 20; // 20-second batch size
+  const startTime = Math.floor(now / (batchSize * 1000)) * (batchSize * 1000);
+  
   // ECG wave components timing (in seconds)
   const heartRate = 60; // 60 BPM
   const cycleLength = 60 / heartRate;
-  const batchSize = 1000; // Process data in smaller batches for better memory usage
+  const processingBatchSize = config.samplingRate * 5; // Process 5 seconds at a time for memory efficiency
   
-  for (let batchStart = 0; batchStart < samplesCount; batchStart += batchSize) {
-    const batchEnd = Math.min(batchStart + batchSize, samplesCount);
+  for (let batchStart = 0; batchStart < samplesCount; batchStart += processingBatchSize) {
+    const batchEnd = Math.min(batchStart + processingBatchSize, samplesCount);
     
     for (let i = batchStart; i < batchEnd; i++) {
       const t = i / config.samplingRate;
@@ -104,7 +108,7 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
       // Add some baseline noise
       value += (Math.random() - 0.5) * baselineNoise;
       
-      const timestamp = now - (duration * 1000) + (t * 1000);
+      const timestamp = startTime - (duration * 1000) + (t * 1000);
       points.push({
         value,
         timestamp,
