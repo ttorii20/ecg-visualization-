@@ -1,25 +1,32 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ECGDisplay } from '@/components/ui/ecg-display';
 import { DetailedECGDisplay } from '@/components/ui/detailed-ecg-display';
+import { RealtimeECGDisplay } from '@/components/ui/realtime-ecg-display';
 import { ECGControls } from '@/components/ui/ecg-controls';
 import { DEFAULT_CONFIG, generateMockECG, type ECGConfiguration, type ECGDataPoint } from '@/lib/ecg-utils';
 
 export function Demo() {
   const [config, setConfig] = useState<ECGConfiguration>(DEFAULT_CONFIG);
   const [data, setData] = useState<ECGDataPoint[]>([]);
+  const [realtimeData, setRealtimeData] = useState<ECGDataPoint[]>([]);
   const [selectedSegmentData, setSelectedSegmentData] = useState<ECGDataPoint[]>([]);
 
   // Buffer size calculation based on sampling rate
   const bufferSeconds = 1800; // 30 minutes
   const batchSeconds = 20; // 20-second batches
+  const realtimeBufferSeconds = 10; // Keep 10 seconds of data for realtime display
 
   useEffect(() => {
     // Generate initial data for 30 minutes
     const initialData = generateMockECG(bufferSeconds, config);
     setData(initialData);
 
-    // Update data in 20-second batches
-    const interval = setInterval(() => {
+    // Initialize realtime buffer with last 5 seconds of data
+    const initialRealtimeData = generateMockECG(realtimeBufferSeconds, config);
+    setRealtimeData(initialRealtimeData);
+
+    // Update timeline data in 20-second batches
+    const timelineInterval = setInterval(() => {
       const newBatchData = generateMockECG(batchSeconds, config);
       setData(prev => {
         const cutoffTime = Date.now() - (bufferSeconds * 1000);
@@ -28,8 +35,21 @@ export function Demo() {
       });
     }, batchSeconds * 1000);
 
-    return () => clearInterval(interval);
-  }, [config, bufferSeconds, batchSeconds]);
+    // Update realtime data more frequently (30fps)
+    const realtimeInterval = setInterval(() => {
+      const newRealtimeData = generateMockECG(0.033, config); // ~33ms of data
+      setRealtimeData(prev => {
+        const cutoffTime = Date.now() - (realtimeBufferSeconds * 1000);
+        const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
+        return [...filteredPrev, ...newRealtimeData];
+      });
+    }, 33);
+
+    return () => {
+      clearInterval(timelineInterval);
+      clearInterval(realtimeInterval);
+    };
+  }, [config, bufferSeconds, batchSeconds, realtimeBufferSeconds]);
 
   const handleSegmentSelect = useCallback(({ data }: { data: ECGDataPoint[] }) => {
     setSelectedSegmentData(data);
@@ -37,7 +57,7 @@ export function Demo() {
 
   return (
     <div className="w-full min-h-screen bg-black p-4 space-y-6">
-      <h1 className="text-3xl font-bold text-center mb-8">
+      <h1 className="text-3xl font-bold text-center mb-8 text-[#00FF00]">
         ECG Timeline View
       </h1>
       
@@ -50,12 +70,19 @@ export function Demo() {
         </div>
         
         <div className="w-full max-w-[1600px] mx-auto space-y-6">
+          <RealtimeECGDisplay
+            data={realtimeData}
+            config={config}
+            className="w-full"
+          />
+          
           <ECGDisplay
             data={data}
             config={config}
             className="w-full"
             onSegmentSelect={handleSegmentSelect}
           />
+          
           {selectedSegmentData.length > 0 && (
             <DetailedECGDisplay
               data={selectedSegmentData}

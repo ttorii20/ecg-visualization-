@@ -67,46 +67,73 @@ export const decimateData = (data: ECGDataPoint[], targetPoints: number): ECGDat
   return decimated;
 };
 
-// Generate realistic ECG waveform optimized for batch processing
+// Generate realistic ECG waveform with variability
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
   const points: ECGDataPoint[] = [];
   const samplesCount = Math.floor(duration * config.samplingRate);
-  const baselineNoise = 0.05;
   const now = Date.now();
   
   // Align start time to 20-second boundary
   const batchSize = 20; // 20-second batch size
   const startTime = Math.floor(now / (batchSize * 1000)) * (batchSize * 1000);
   
-  // ECG wave components timing (in seconds)
-  const heartRate = 60; // 60 BPM
-  const cycleLength = 60 / heartRate;
-  const processingBatchSize = config.samplingRate * 5; // Process 5 seconds at a time for memory efficiency
+  // Base ECG parameters
+  const baseHeartRate = 60; // Base heart rate in BPM
+  const processingBatchSize = config.samplingRate * 5;
+  
+  // Respiratory modulation (approximately 12 breaths per minute)
+  const respirationRate = 0.2; // Hz
+  
+  // Initialize noise generators
+  let baselineWander = 0;
+  let lastBaselineUpdate = 0;
   
   for (let batchStart = 0; batchStart < samplesCount; batchStart += processingBatchSize) {
     const batchEnd = Math.min(batchStart + processingBatchSize, samplesCount);
     
     for (let i = batchStart; i < batchEnd; i++) {
       const t = i / config.samplingRate;
+      
+      // Add heart rate variability (±5 BPM)
+      const heartRateVariability = Math.sin(t * 0.1) * 5;
+      const instantaneousHeartRate = baseHeartRate + heartRateVariability;
+      const cycleLength = 60 / instantaneousHeartRate;
       const tInCycle = t % cycleLength;
+      
+      // Generate baseline wander (slow variation)
+      if (t - lastBaselineUpdate >= 0.1) { // Update every 100ms
+        baselineWander += (Math.random() - 0.5) * 0.02;
+        baselineWander *= 0.95; // Decay factor
+        lastBaselineUpdate = t;
+      }
+      
+      // Add respiratory modulation
+      const respiratoryComponent = Math.sin(2 * Math.PI * respirationRate * t) * 0.1;
       
       // Generate each component of the ECG wave
       let value = 0;
       
-      // P wave (atrial depolarization)
-      value += 0.5 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
+      // P wave with slight variation
+      const pAmplitude = 0.25 + Math.random() * 0.1;
+      value += pAmplitude * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
       
-      // QRS complex
+      // QRS complex with natural variation
       const qrsCenter = 0.4;
-      value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
-      value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
-      value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
+      const qrsVariation = 0.002 * Math.random();
+      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02 + qrsVariation)) * 200, 2)); // Q
+      value += (3.0 + Math.random() * 0.2) * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R
+      value -= (0.6 + Math.random() * 0.1) * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02 + qrsVariation)) * 200, 2)); // S
       
-      // T wave (ventricular repolarization)
-      value += 0.7 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
+      // T wave with increased variability
+      const tWaveAmplitude = 0.7 + Math.random() * 0.3;
+      value += tWaveAmplitude * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
       
-      // Add some baseline noise
-      value += (Math.random() - 0.5) * baselineNoise;
+      // Add baseline wander and respiratory modulation
+      value += baselineWander + respiratoryComponent;
+      
+      // Add high-frequency noise
+      const noise = (Math.random() - 0.5) * 0.05;
+      value += noise;
       
       const timestamp = startTime - (duration * 1000) + (t * 1000);
       points.push({
@@ -142,7 +169,7 @@ export const drawGrid = (
   // Draw horizontal amplitude reference lines
   ctx.strokeStyle = '#00FF00';
   ctx.lineWidth = 1;
-  const horizontalSpacing = config.gridSize * 5 * pixelsPerMm; // Major grid lines only
+  const horizontalSpacing = config.gridSize * 5 * pixelsPerMm;
   
   for (let y = 0; y < height; y += horizontalSpacing) {
     ctx.beginPath();
@@ -154,7 +181,7 @@ export const drawGrid = (
   // Draw vertical time markers at 20-second intervals
   const secondsPerMm = 1 / config.timeScale;
   const pixelsPerSecond = pixelsPerMm / secondsPerMm;
-  const intervalSeconds = 20; // 20-second intervals
+  const intervalSeconds = 20;
   const intervalWidth = intervalSeconds * pixelsPerSecond;
   
   for (let x = 0; x < width; x += intervalWidth) {
