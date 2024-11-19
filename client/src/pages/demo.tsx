@@ -8,12 +8,12 @@ export function Demo() {
   const [data, setData] = useState<ECGDataPoint[]>([]);
 
   // Buffer size calculation based on sampling rate
-  const bufferSeconds = 12; // 10 seconds visible + 2 seconds buffer
+  const bufferSeconds = 1800; // 30 minutes
   const updateInterval = 1000 / 30; // ~30fps update rate
   const chunkDuration = updateInterval / 1000; // Convert ms to seconds
 
   useEffect(() => {
-    // Generate initial data
+    // Generate initial data for 30 minutes
     const initialData = generateMockECG(bufferSeconds, config);
     setData(initialData);
 
@@ -33,7 +33,7 @@ export function Demo() {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <h1 className="text-3xl font-bold text-center mb-8">
-        ECG Visualization Demo
+        ECG Timeline View
       </h1>
       
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -41,8 +41,8 @@ export function Demo() {
           <ECGDisplay
             data={data}
             config={config}
-            width={800}
-            height={400}
+            width={900}
+            height={600}
             className="w-full"
           />
         </div>

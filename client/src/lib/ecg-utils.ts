@@ -12,11 +12,59 @@ export type ECGConfiguration = {
 };
 
 export const DEFAULT_CONFIG: ECGConfiguration = {
-  samplingRate: 128, // Changed to 128Hz as requested
-  timeScale: 25, // mm/s
-  amplitude: 10, // mm/mV
-  gridSize: 5, // mm
+  samplingRate: 128,
+  timeScale: 25,
+  amplitude: 10,
+  gridSize: 5,
   leadConfiguration: 'II',
+};
+
+// Time formatting helper functions
+export const formatTimestamp = (timestamp: number): string => {
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString('en-US', {
+    hour12: false,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
+// Data decimation for overview
+export const decimateData = (data: ECGDataPoint[], targetPoints: number): ECGDataPoint[] => {
+  if (data.length <= targetPoints) return data;
+  
+  const stride = Math.floor(data.length / targetPoints);
+  const decimated: ECGDataPoint[] = [];
+  
+  for (let i = 0; i < data.length; i += stride) {
+    // Calculate min and max values in the current window
+    const windowEnd = Math.min(i + stride, data.length);
+    let minVal = Infinity;
+    let maxVal = -Infinity;
+    let minPoint = data[i];
+    let maxPoint = data[i];
+    
+    for (let j = i; j < windowEnd; j++) {
+      if (data[j].value < minVal) {
+        minVal = data[j].value;
+        minPoint = data[j];
+      }
+      if (data[j].value > maxVal) {
+        maxVal = data[j].value;
+        maxPoint = data[j];
+      }
+    }
+    
+    // Add both min and max points to preserve signal peaks
+    if (minPoint.timestamp < maxPoint.timestamp) {
+      decimated.push(minPoint, maxPoint);
+    } else {
+      decimated.push(maxPoint, minPoint);
+    }
+  }
+  
+  return decimated;
 };
 
 // Generate realistic ECG waveform
@@ -70,13 +118,16 @@ export const interpolatePoints = (p1: ECGDataPoint, p2: ECGDataPoint, t: number)
   };
 };
 
-// Draw grid lines for ECG paper
+// Draw grid lines for ECG paper with time markers
 export const drawGrid = (
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
   config: ECGConfiguration,
   pixelsPerMm: number,
+  startTime: number,
+  rowHeight: number,
+  showTimeMarkers = false,
 ) => {
   ctx.save();
   
@@ -107,6 +158,17 @@ export const drawGrid = (
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
     ctx.stroke();
+    
+    // Add time markers
+    if (showTimeMarkers) {
+      const timeOffset = (x / (config.timeScale * pixelsPerMm));
+      const timestamp = startTime + (timeOffset * 1000);
+      ctx.save();
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+      ctx.font = '10px sans-serif';
+      ctx.fillText(formatTimestamp(timestamp), x + 2, rowHeight - 5);
+      ctx.restore();
+    }
   }
   
   for (let y = 0; y < height; y += config.gridSize * 5 * pixelsPerMm) {
