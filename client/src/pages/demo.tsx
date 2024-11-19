@@ -9,26 +9,25 @@ export function Demo() {
 
   // Buffer size calculation based on sampling rate
   const bufferSeconds = 1800; // 30 minutes
-  const updateInterval = 1000 / 30; // ~30fps update rate
-  const chunkDuration = updateInterval / 1000; // Convert ms to seconds
+  const batchSeconds = 20; // 20-second batches
 
   useEffect(() => {
     // Generate initial data for 30 minutes
     const initialData = generateMockECG(bufferSeconds, config);
     setData(initialData);
 
-    // Update data at ~30fps
+    // Update data in 20-second batches
     const interval = setInterval(() => {
-      const newData = generateMockECG(chunkDuration, config);
+      const newBatchData = generateMockECG(batchSeconds, config);
       setData(prev => {
         const cutoffTime = Date.now() - (bufferSeconds * 1000);
         const filteredPrev = prev.filter(point => point.timestamp > cutoffTime);
-        return [...filteredPrev, ...newData];
+        return [...filteredPrev, ...newBatchData];
       });
-    }, updateInterval);
+    }, batchSeconds * 1000); // Convert to milliseconds
 
     return () => clearInterval(interval);
-  }, [config, bufferSeconds, updateInterval, chunkDuration]);
+  }, [config, bufferSeconds, batchSeconds]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">

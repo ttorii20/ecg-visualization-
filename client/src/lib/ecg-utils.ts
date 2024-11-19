@@ -67,7 +67,7 @@ export const decimateData = (data: ECGDataPoint[], targetPoints: number): ECGDat
   return decimated;
 };
 
-// Generate realistic ECG waveform
+// Generate realistic ECG waveform optimized for batch processing
 export const generateMockECG = (duration: number, config: ECGConfiguration): ECGDataPoint[] => {
   const points: ECGDataPoint[] = [];
   const samplesCount = Math.floor(duration * config.samplingRate);
@@ -77,34 +77,39 @@ export const generateMockECG = (duration: number, config: ECGConfiguration): ECG
   // ECG wave components timing (in seconds)
   const heartRate = 60; // 60 BPM
   const cycleLength = 60 / heartRate;
+  const batchSize = 1000; // Process data in smaller batches for better memory usage
   
-  for (let i = 0; i < samplesCount; i++) {
-    const t = i / config.samplingRate;
-    const tInCycle = t % cycleLength;
+  for (let batchStart = 0; batchStart < samplesCount; batchStart += batchSize) {
+    const batchEnd = Math.min(batchStart + batchSize, samplesCount);
     
-    // Generate each component of the ECG wave
-    let value = 0;
-    
-    // P wave (atrial depolarization)
-    value += 0.5 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
-    
-    // QRS complex
-    const qrsCenter = 0.4;
-    value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
-    value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
-    value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
-    
-    // T wave (ventricular repolarization)
-    value += 0.7 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
-    
-    // Add some baseline noise
-    value += (Math.random() - 0.5) * baselineNoise;
-    
-    const timestamp = now - (duration * 1000) + (t * 1000);
-    points.push({
-      value,
-      timestamp,
-    });
+    for (let i = batchStart; i < batchEnd; i++) {
+      const t = i / config.samplingRate;
+      const tInCycle = t % cycleLength;
+      
+      // Generate each component of the ECG wave
+      let value = 0;
+      
+      // P wave (atrial depolarization)
+      value += 0.5 * Math.exp(-Math.pow((tInCycle - 0.2) * 20, 2));
+      
+      // QRS complex
+      const qrsCenter = 0.4;
+      value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter - 0.02)) * 200, 2)); // Q wave
+      value += 3.0 * Math.exp(-Math.pow((tInCycle - qrsCenter) * 180, 2)); // R wave
+      value -= 0.6 * Math.exp(-Math.pow((tInCycle - (qrsCenter + 0.02)) * 200, 2)); // S wave
+      
+      // T wave (ventricular repolarization)
+      value += 0.7 * Math.exp(-Math.pow((tInCycle - 0.6) * 20, 2));
+      
+      // Add some baseline noise
+      value += (Math.random() - 0.5) * baselineNoise;
+      
+      const timestamp = now - (duration * 1000) + (t * 1000);
+      points.push({
+        value,
+        timestamp,
+      });
+    }
   }
   
   return points;
